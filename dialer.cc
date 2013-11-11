@@ -1,3 +1,4 @@
+#include <boost/interprocess/managed_shared_memory.hpp>
 #include <iostream>
 #include <node.h>
 #include <v8.h>
@@ -9,6 +10,8 @@
 #include <sys/stat.h>        
 #include <fcntl.h>           
 #include <sys/mman.h>
+
+using namespace boost::interprocess;
 
 enum {
     pjsip_dll_init=0,
@@ -59,6 +62,7 @@ using namespace v8;
 
 CallbackParams cb;
 CallbackParams *cbParams;
+managed_shared_memory *managed_shm;
 int sId;
 int account_added = 0;
 std::string domain;
@@ -105,8 +109,6 @@ Handle<Value> Register(const Arguments& args) {
 
 	std::string str("Ashish Lal");
 	std::cout << "cbParams = " << cbParams << std::endl;
-	cbParams = (CallbackParams *) mmap (NULL, sizeof(CallbackParams)+512,
-	        PROT_READ|PROT_WRITE, MAP_SHARED, sId, 0);
 	strcpy(cbParams->displayName, str.c_str());;
 	std::cout << "1.... " << std::endl;
 
@@ -169,15 +171,9 @@ void Dialer_Confirmed() {
 
 void Init(Handle<Object> exports)
 {
-	/* We create a shared memory object */
-	sId = shm_open("MySharedData", O_RDWR|O_CREAT|O_TRUNC, 0666);
-
-	/* We allocate memory to shared object */         
-    ftruncate (sId, sizeof(CallbackParams)+512);
-
-    /* we attach the allocated object to our process */
-	cbParams = (CallbackParams *) mmap (NULL, sizeof(CallbackParams)+512, 
-		PROT_READ|PROT_WRITE, MAP_SHARED, sId, 0);
+    shared_memory_object::remove("NodePJSIP"); 
+	managed_shm = new managed_shared_memory (open_or_create, "NodePJSIP", 65536); 
+	cbParams = managed_shm->construct<CallbackParams>("CB")();  
 	cbParams->cmd = CMD_NONE;
 	std::cout << "cbParams = " << cbParams << std::endl;
   	exports->Set(String::NewSymbol("init"),
@@ -191,6 +187,9 @@ void Init(Handle<Object> exports)
 
 	child = fork();
 	if(child == 0) {
+		std::pair<CallbackParams*, std::size_t> p = 
+			managed_shm->find<CallbackParams>("CB");
+		cbParams = (p.first);
 		std::string str("Ashish Lal");
 		strcpy(cb.displayName,str.c_str());
 		cb.sipPort = 5070;

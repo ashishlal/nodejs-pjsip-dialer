@@ -65,8 +65,13 @@ void CPJSIPDll::default_config()
     cfg->wav_port = PJSUA_INVALID_ID;
     cfg->rec_port = PJSUA_INVALID_ID;
     cfg->mic_level = cfg->speaker_level = 1.0;
+	#if 1
     cfg->capture_dev = PJSUA_INVALID_ID;
     cfg->playback_dev = PJSUA_INVALID_ID;
+	#else
+    cfg->capture_dev = 3;
+    cfg->playback_dev = 2;
+	#endif
     cfg->capture_lat = PJMEDIA_SND_DEFAULT_REC_LATENCY;
     cfg->playback_lat = PJMEDIA_SND_DEFAULT_PLAY_LATENCY;
     cfg->ringback_slot = PJSUA_INVALID_ID;
@@ -85,6 +90,7 @@ void CPJSIPDll::default_config()
 
     cfg->avi_def_idx = PJSUA_INVALID_ID;
 	//cfg->no_udp = true;
+	//cfg->media_cfg.clock_rate = 44100;
 }
 
 
@@ -1933,9 +1939,20 @@ int CPJSIPDll::on_pjsip_dll_init()
 	/* Initialization is done, now start pjsua */
     status = pjsua_start();
     if (status != PJ_SUCCESS) error_exit("Error starting pjsua", status);
-		return PJ_SUCCESS;
 	
 	std::cout << "Inside on_pjsip_dll_init - 8" << std::endl;
+	int dev_count;
+	pjmedia_aud_dev_index dev_idx;
+	dev_count = pjmedia_aud_dev_count();
+	printf("Got %d audio devices\n", dev_count);
+	for (dev_idx=0; dev_idx<dev_count; ++dev_idx) {
+		pjmedia_aud_dev_info info;
+		pjmedia_aud_dev_get_info(dev_idx, &info);
+		printf("%d. %s (in=%d, out=%d)\n",
+			dev_idx, info.name,
+			info.input_count, info.output_count);
+	}
+	return PJ_SUCCESS;
 on_error:
 	app_destroy();
 	return status;
@@ -1990,38 +2007,6 @@ int CPJSIPDll::on_pjsip_dll_add_account()
 	unsigned int action = VID_ENABLE | VID_ACC_AUTORX_ON | VID_ACC_AUTOTX_ON;
 	vid_handle_menu(action, NULL);
 
-	vbrDriver = new PJSIPVideoBitrateDriver;
-	if (vbrDriver == NULL) {
-		status = PJ_ENOMEM;
-	    pjsua_perror(THIS_FILE, "Error allocating VBR Driver", status);
-	}
-
-	/*qosAnalyzer = new PJSIPQosAnalyzer;
-	if (qosAnalyzer == NULL) {
-		status = PJ_ENOMEM;
-	    pjsua_perror(THIS_FILE, "Error allocating Adaptive Bitrate QoS Analyzer", status);
-	}*/
-
-	PJ_LOG(4,(THIS_FILE, "SLR: %u, SD: %u, SJ: %u, ELR: %u, EJ: %u, ED:%u, IDT: %u",
-					cbParams->significantLossRate,
-					cbParams->significantDelay,
-					cbParams->significantJitter,
-					cbParams->extremeLossRate,
-					cbParams->extremeJitter,
-					cbParams->extremeDelay,
-					cbParams->internetDownTimeout));
-	qosAnalyzer = new PJSIPQosAnalyzer(
-		cbParams->significantLossRate,
-		cbParams->significantJitter,
-		cbParams->significantDelay,
-		cbParams->extremeLossRate,
-		cbParams->extremeJitter,
-		cbParams->extremeDelay,
-		cbParams->internetDownTimeout);
-	if (qosAnalyzer == NULL) {
-		status = PJ_ENOMEM;
-	    pjsua_perror(THIS_FILE, "Error allocating Adaptive Bitrate QoS Analyzer", status);
-	}
 #endif
 	/* Update call setting */
 	update_call_setting();

@@ -3,12 +3,16 @@
     {
       "target_name": "dialer",
       "sources": [ "dialer.cc" ],
+	  'cflags': ['-fexceptions'],
+	  'cflags_cc': ['-fexceptions'],
+	  'cflags_cc!': [ '-fno-rtti' ],
       'include_dirs': [
-  	'/home/ashish/test/node/dialer',
+	'/home/ashish/Downloads/boost_1_54_0/boost_libs/include',
+  	'/home/ashish/test/node/nodejs-pjsip-dialer',
 	],
       "link_settings": {
           'libraries': [
-              '-lPJSIP', '-L/home/ashish/test/node/dialer',
+              '-lPJSIP', '-L/home/ashish/test/node/nodejs-pjsip-dialer',
 			  '-lpjsua-x86_64-unknown-linux-gnu',
 			  '-lpjsip-ua-x86_64-unknown-linux-gnu',
 			  '-lpjsip-simple-x86_64-unknown-linux-gnu',
